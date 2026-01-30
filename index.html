@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flashcard Elite 11.0 - Edição Total</title>
+    <style>
+        :root { 
+            --primary: #2563eb; --danger: #ef4444; --success: #22c55e; 
+            --bg: #f8fafc; --card-bg: #ffffff; --text: #1e293b; --border: #e2e8f0; 
+            --accent: #f59e0b;
+        }
+        [data-theme="dark"] { 
+            --bg: #0f172a; --card-bg: #1e293b; --text: #f8fafc; --border: #334155; 
+        }
+        
+        .theme-criminologia { --primary: #2563eb; }
+        .theme-direito-penal { --primary: #dc2626; }
+        .theme-direito-adm { --primary: #059669; }
+        .theme-portugues { --primary: #7c3aed; }
+        .theme-default { --primary: #475569; }
+
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; align-items: center; padding: 20px; transition: 0.3s; min-height: 100vh; }
+        .section { background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border); width: 100%; max-width: 550px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        
+        .pomodoro-container { display: flex; align-items: center; justify-content: space-between; background: var(--primary); color: white; padding: 10px 20px; border-radius: 50px; margin-bottom: 20px; width: fit-content; min-width: 220px; }
+        
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 5px; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+        .stat-card { background: var(--bg); padding: 8px; border-radius: 8px; border: 1px solid var(--border); text-align: center; }
+        .stat-value { font-size: 1.1rem; font-weight: bold; color: var(--text); }
+        .stat-label { font-size: 0.6rem; color: #64748b; text-transform: uppercase; }
+
+        .btn { padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; color: white; transition: 0.2s; font-size: 0.8rem; }
+        .btn-ghost { background: transparent; color: var(--primary); border: 1px solid var(--primary); padding: 5px 10px; margin: 2px; }
+        
+        .flashcard-container { perspective: 1000px; width: 100%; height: 260px; cursor: pointer; margin: 15px 0; }
+        .flashcard { position: relative; width: 100%; height: 100%; transition: transform 0.4s; transform-style: preserve-3d; }
+        .flashcard.flipped { transform: rotateY(180deg); }
+        .front, .back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; padding: 25px; border-radius: 15px; border: 2px solid var(--primary); box-sizing: border-box; text-align: center; }
+        .back { background: var(--primary); color: white; transform: rotateY(180deg); }
+
+        .edit-tools { position: absolute; top: 10px; left: 10px; display: flex; gap: 5px; }
+        .tool-btn { background: rgba(255,255,255,0.2); border: 1px solid white; color: white; border-radius: 4px; padding: 2px 8px; font-size: 0.6rem; cursor: pointer; }
+        .tool-btn:hover { background: rgba(255,255,255,0.4); }
+
+        input, select, textarea { width: 100%; padding: 10px; margin-bottom: 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text); box-sizing: border-box; }
+        .audio-btn { position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.1); border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; }
+        
+        .kb-hint { display: flex; justify-content: center; gap: 15px; margin-top: 15px; font-size: 0.7rem; color: #64748b; border-top: 1px solid var(--border); padding-top: 10px; }
+        
+        .priority-section { border-top: 2px dashed var(--accent); margin-top: 10px; padding-top: 10px; display: none; }
+        .priority-badge { background: var(--accent); color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+    </style>
+</head>
+<body class="theme-default">
+
+    <div style="position: fixed; top: 10px; right: 10px; display: flex; flex-direction: column; z-index: 100;">
+        <button class="btn btn-ghost" onclick="toggleTheme()">🌙 Tema</button>
+        <button class="btn btn-ghost" onclick="exportData()">💾 Backup</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('fileInput').click()">📂 Abrir</button>
+        <input type="file" id="fileInput" style="display:none" onchange="importData(event)">
+    </div>
+
+    <div class="pomodoro-container" id="pomoContainer">
+        <span id="timer" style="font-family:monospace; font-size:1.4rem;">25:00</span>
+        <button class="btn btn-ghost" style="color:white; border-color:white;" onclick="toggleTimer()" id="pomoBtn">Focar</button>
+    </div>
+
+    <div class="section">
+        <div class="dashboard-header">
+            <span>📊 Desempenho: <span id="currentSubjectName">Nenhuma</span></span>
+            <button class="btn btn-ghost" style="font-size: 0.6rem; color: var(--danger); border-color: var(--danger);" onclick="clearStats()">🧹 Limpar Stats</button>
+        </div>
+        <div class="stats-grid">
+            <div class="stat-card"><div class="stat-value" id="statsSeen">0</div><div class="stat-label">Total</div></div>
+            <div class="stat-card"><div class="stat-value" style="color:var(--success)" id="statsSuccess">0</div><div class="stat-label">Acertos</div></div>
+            <div class="stat-card"><div class="stat-value" style="color:var(--primary)" id="statsRate">0%</div><div class="stat-label">Eficiência</div></div>
+        </div>
+
+        <div id="priorityArea" class="priority-section">
+            <div style="display:flex; justify-content: space-between; align-items: center;">
+                <span class="priority-badge">⚠️ FOCO CRÍTICO (+3 ERROS)</span>
+                <button class="btn btn-ghost" style="font-size: 0.6rem;" onclick="loadPriorityCards()">Estudar Vilões</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <button class="btn btn-ghost" id="modeBtn" onclick="toggleMode()">ESTUDO</button>
+            <button class="btn btn-ghost" onclick="shuffleCards()">🔀 Embaralhar</button>
+        </div>
+
+        <select id="topicSelect" onchange="updateSubtopics()"></select>
+        <select id="subtopicSelect" onchange="loadCards()"></select>
+        <input type="text" id="searchInput" placeholder="🔍 Pesquisar termo..." onkeyup="filterCards()">
+
+        <div class="flashcard-container" onclick="flipCard()">
+            <div class="flashcard" id="cardElement">
+                <div class="front">
+                    <span id="cardFront">Selecione uma matéria</span>
+                    <button class="audio-btn" onclick="speak('cardFront', event)">🔊</button>
+                </div>
+                <div class="back">
+                    <div class="edit-tools">
+                        <button class="tool-btn" onclick="editCurrentCard(event)">✏️ Editar</button>
+                        <button class="tool-btn" style="border-color:#ff4d4d; color:#ff4d4d" onclick="deleteCurrentCard(event)">🗑️ Excluir</button>
+                    </div>
+                    <span id="cardBack">Verso</span>
+                    <button class="audio-btn" style="color:white" onclick="speak('cardBack', event)">🔊</button>
+                </div>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+            <button class="btn" style="background:var(--danger); flex:1" onclick="markCard(false)">✘ ERREI (←)</button>
+            <button class="btn" style="background:var(--success); flex:1" onclick="markCard(true)">✔ ACERTEI (→)</button>
+        </div>
+        <p id="counter" style="text-align:center; font-size:0.8rem; margin-top:10px;">0 de 0</p>
+    </div>
+
+    <div class="section">
+        <h2 style="font-size: 0.9rem; margin-bottom: 10px; color: var(--primary);">📥 Importar Conteúdo</h2>
+        <input type="text" id="impTopic" placeholder="Matéria">
+        <input type="text" id="impSub" placeholder="Assunto">
+        <textarea id="bulkArea" placeholder="Frente | Verso" style="height:50px;"></textarea>
+        <button class="btn" style="background:var(--primary); width:100%" onclick="importBulk()">Salvar</button>
+    </div>
+
+    <script>
+        let database = JSON.parse(localStorage.getItem('myFlashcards')) || {};
+        let reviewList = JSON.parse(localStorage.getItem('reviewList')) || {};
+        let subjectStats = JSON.parse(localStorage.getItem('subjectStats')) || {};
+        let cardErrors = JSON.parse(localStorage.getItem('cardErrors')) || {}; 
+        
+        let isReviewMode = false, currentCards = [], filteredCards = [], currentIndex = 0;
+
+        // --- POMODORO ---
+        let timerSeconds = 1500, timerId = null;
+        function toggleTimer() {
+            if (timerId) { clearInterval(timerId); timerId = null; document.getElementById('pomoBtn').innerText = "Focar"; }
+            else { timerId = setInterval(() => {
+                if (timerSeconds <= 0) { clearInterval(timerId); alert("Pausa!"); timerSeconds = 1500; return; }
+                timerSeconds--;
+                let m = Math.floor(timerSeconds/60), s = timerSeconds%60;
+                document.getElementById('timer').innerText = `${m}:${s<10?'0'+s:s}`;
+            }, 1000); document.getElementById('pomoBtn').innerText = "Pausar"; }
+        }
+
+        // --- EDIÇÃO E EXCLUSÃO ---
+        function editCurrentCard(e) {
+            e.stopPropagation();
+            const card = filteredCards[currentIndex];
+            const newFront = prompt("Editar Frente:", card.f);
+            const newBack = prompt("Editar Verso:", card.v);
+            
+            if (newFront !== null && newBack !== null) {
+                card.f = newFront;
+                card.v = newBack;
+                // Atualiza no banco principal
+                localStorage.setItem('myFlashcards', JSON.stringify(database));
+                showCard();
+            }
+        }
+
+        function deleteCurrentCard(e) {
+            e.stopPropagation();
+            if (confirm("Tem certeza que deseja excluir este card permanentemente?")) {
+                const cardId = filteredCards[currentIndex].id;
+                
+                // Remover do database
+                for (let t in database) {
+                    for (let s in database[t]) {
+                        database[t][s] = database[t][s].filter(c => c.id !== cardId);
+                    }
+                }
+                
+                // Remover da fila atual
+                filteredCards.splice(currentIndex, 1);
+                localStorage.setItem('myFlashcards', JSON.stringify(database));
+                
+                if (filteredCards.length === 0) {
+                    alert("Último card removido.");
+                    renderMenus();
+                } else {
+                    if (currentIndex >= filteredCards.length) currentIndex = 0;
+                    showCard();
+                }
+            }
+        }
+
+        // --- DASHBOARD ---
+        function clearStats() {
+            if (confirm("Zerar estatísticas e vilões?")) {
+                subjectStats = {}; cardErrors = {}; reviewList = {};
+                localStorage.setItem('subjectStats', JSON.stringify({}));
+                localStorage.setItem('cardErrors', JSON.stringify({}));
+                localStorage.setItem('reviewList', JSON.stringify({}));
+                updateDashboard(); renderMenus();
+            }
+        }
+
+        function updateDashboard() {
+            const topic = document.getElementById('topicSelect').value;
+            if (!topic) return;
+            document.getElementById('currentSubjectName').innerText = topic;
+            const s = subjectStats[topic] || { seen: 0, easy: 0 };
+            document.getElementById('statsSeen').innerText = s.seen;
+            document.getElementById('statsSuccess').innerText = s.easy;
+            const rate = s.seen === 0 ? 0 : Math.round((s.easy / s.seen) * 100);
+            document.getElementById('statsRate').innerText = rate + "%";
+            updateThemeColor(topic);
+            checkPrioritySection();
+        }
+
+        function checkPrioritySection() {
+            const hasCritical = Object.values(cardErrors).some(count => count >= 3);
+            document.getElementById('priorityArea').style.display = hasCritical ? 'block' : 'none';
+        }
+
+        function loadPriorityCards() {
+            let pCards = [];
+            Object.values(database).forEach(sub => Object.values(sub).forEach(cards => {
+                cards.forEach(c => { if(cardErrors[c.id] >= 3) pCards.push(c); });
+            }));
+            if(pCards.length > 0) { filteredCards = pCards; currentIndex = 0; showCard(); document.getElementById('currentSubjectName').innerText = "VILÕES"; }
+        }
+
+        function markCard(isSuccess) {
+            if (filteredCards.length === 0) return;
+            const topic = document.getElementById('topicSelect').value;
+            const sub = document.getElementById('subtopicSelect').value;
+            const card = filteredCards[currentIndex];
+
+            if (!subjectStats[topic]) subjectStats[topic] = { seen: 0, easy: 0 };
+            subjectStats[topic].seen++;
+
+            if (isSuccess) {
+                subjectStats[topic].easy++;
+                if (reviewList[topic] && reviewList[topic][sub]) {
+                    reviewList[topic][sub] = reviewList[topic][sub].filter(x => x.id !== card.id);
+                }
+            } else {
+                cardErrors[card.id] = (cardErrors[card.id] || 0) + 1;
+                if (!reviewList[topic]) reviewList[topic] = {};
+                if (!reviewList[topic][sub]) reviewList[topic][sub] = [];
+                if (!reviewList[topic][sub].find(x => x.id === card.id)) reviewList[topic][sub].push(card);
+                filteredCards.push(card);
+            }
+
+            localStorage.setItem('subjectStats', JSON.stringify(subjectStats));
+            localStorage.setItem('reviewList', JSON.stringify(reviewList));
+            localStorage.setItem('cardErrors', JSON.stringify(cardErrors));
+            updateDashboard();
+            nextCard();
+        }
+
+        function nextCard() { 
+            if(currentIndex < filteredCards.length - 1) { currentIndex++; showCard(); } 
+            else { alert("Fim da lista!"); } 
+        }
+
+        function flipCard() { document.getElementById('cardElement').classList.toggle('flipped'); }
+        
+        window.onkeydown = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.code === 'Space') { e.preventDefault(); flipCard(); }
+            if (e.code === 'ArrowRight') { e.preventDefault(); markCard(true); }
+            if (e.code === 'ArrowLeft') { e.preventDefault(); markCard(false); }
+        };
+
+        function filterCards() {
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            filteredCards = currentCards.filter(c => c.f.toLowerCase().includes(term) || c.v.toLowerCase().includes(term));
+            currentIndex = 0; showCard();
+        }
+
+        function updateThemeColor(t) {
+            document.body.className = "theme-default";
+            const s = t.toLowerCase();
+            if (s.includes("criminologia")) document.body.className = "theme-criminologia";
+            else if (s.includes("penal")) document.body.className = "theme-direito-penal";
+            else if (s.includes("adm")) document.body.className = "theme-direito-adm";
+        }
+
+        function importBulk() {
+            const t = document.getElementById('impTopic').value.trim(), s = document.getElementById('impSub').value.trim(), text = document.getElementById('bulkArea').value.trim();
+            if(!t || !s || !text) return;
+            if(!database[t]) database[t] = {}; if(!database[t][s]) database[t][s] = [];
+            text.split('\n').forEach(line => {
+                const p = line.split('|');
+                if(p.length === 2) database[t][s].push({ f: p[0].trim(), v: p[1].trim(), id: Date.now() + Math.random() });
+            });
+            localStorage.setItem('myFlashcards', JSON.stringify(database));
+            document.getElementById('bulkArea').value = ""; renderMenus();
+        }
+
+        function renderMenus() {
+            const sel = document.getElementById('topicSelect'), data = isReviewMode ? reviewList : database;
+            sel.innerHTML = "";
+            Object.keys(data).forEach(t => { let o = document.createElement('option'); o.value = o.innerText = t; sel.appendChild(o); });
+            updateSubtopics();
+        }
+
+        function updateSubtopics() {
+            const t = document.getElementById('topicSelect').value, sel = document.getElementById('subtopicSelect'), data = isReviewMode ? reviewList : database;
+            sel.innerHTML = "";
+            if(t && data[t]) Object.keys(data[t]).forEach(s => { let o = document.createElement('option'); o.value = o.innerText = s; sel.appendChild(o); });
+            updateDashboard(); loadCards();
+        }
+
+        function loadCards() {
+            const t = document.getElementById('topicSelect').value, s = document.getElementById('subtopicSelect').value, data = isReviewMode ? reviewList : database;
+            currentCards = (t && s && data[t] && data[t][s]) ? [...data[t][s]] : [];
+            filterCards();
+        }
+
+        function showCard() {
+            document.getElementById('cardElement').classList.remove('flipped');
+            if(filteredCards.length > 0 && filteredCards[currentIndex]) {
+                document.getElementById('cardFront').innerText = filteredCards[currentIndex].f;
+                document.getElementById('cardBack').innerText = filteredCards[currentIndex].v;
+                document.getElementById('counter').innerText = `${currentIndex + 1} de ${filteredCards.length}`;
+            } else { 
+                document.getElementById('cardFront').innerText = "Selecione uma matéria"; 
+                document.getElementById('counter').innerText = "0 de 0"; 
+            }
+        }
+
+        function shuffleCards() { filteredCards.sort(() => Math.random() - 0.5); currentIndex = 0; showCard(); }
+        function speak(id, e) { e.stopPropagation(); const m = new SpeechSynthesisUtterance(document.getElementById(id).innerText); m.lang = 'pt-BR'; window.speechSynthesis.speak(m); }
+        function toggleTheme() { document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); }
+        function toggleMode() { isReviewMode = !isReviewMode; document.getElementById('modeBtn').innerText = isReviewMode ? "REVISÃO" : "ESTUDO"; renderMenus(); }
+        function exportData() { const blob = new Blob([JSON.stringify({database, reviewList, subjectStats, cardErrors})], {type: 'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'flashcards.json'; a.click(); }
+        function importData(e) { const reader = new FileReader(); reader.onload = (ev) => { const d = JSON.parse(ev.target.result); database = d.database; reviewList = d.reviewList; subjectStats = d.subjectStats || {}; cardErrors = d.cardErrors || {}; localStorage.setItem('myFlashcards', JSON.stringify(database)); renderMenus(); }; reader.readAsText(e.target.files[0]); }
+
+        renderMenus();
+    </script>
+</body>
+</html>
